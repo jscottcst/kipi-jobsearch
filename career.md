@@ -15,3 +15,4 @@ description: Assistant and in preparation and deployment of the kipi-system
 - The Fork will be hosted locally in "C":\Users\Skip\Documents\jobsearch", in this folder are older resumes and cover letters(\resumes and \cover letters) from applications I have filled out previously to this project
 - never overwrite or delete files and directories without asking me first
 - use camelcase naming conevntion for all directories and subdirectories created.
+- I want the kipi-system to scrape linkedin and X for job listings and opportunities ON TOP of using it to help me manage conversation flows with recruiters, follow ups with hiring managers and potential teammates.
