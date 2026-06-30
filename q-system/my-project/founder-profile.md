@@ -35,12 +35,12 @@
 
 ## Platform Handles
 - **LinkedIn URL:** https://www.linkedin.com/in/jordan-scott-854409154/
-- **X/Twitter handle:**
+- **X/Twitter handle:** @skipxscott
 - **Medium handle:**
 - **Reddit username:**
 - **Substack:**
 - **GitHub username:** jscottcst
-- **Instagram:**
+- **Instagram:** @skipxscott
 - **TikTok:**
 
 ## CRM
