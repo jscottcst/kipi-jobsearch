@@ -1,31 +1,36 @@
-# ICP (Ideal Customer Profile)
+# Target Employer Profile
 
-> Who the buyer is. Updated through debriefs and /q-calibrate. Agents read this to filter content and score leads.
+> Who Jordan wants to work for. Agents use this to score job listings and filter opportunities.
 
-## Primary Buyer <!-- pin -->
-- **Title(s):** <!-- e.g. CISO, VP Security, Head of Detection Engineering -->
-- **Reports to:** <!-- e.g. CTO, CIO -->
-- **Company size:** <!-- e.g. 500-5000 employees -->
-- **Company stage:** <!-- e.g. Series B+, enterprise -->
-- **Industry/vertical:** <!-- e.g. fintech, healthcare, SaaS -->
-- **Geography:** <!-- e.g. US, EU, global -->
+## Primary Target: SE Role at Fintech Vendor <!-- pin -->
+- **Title(s) hiring:** Solutions Engineer, Sales Engineer, Technical Account Manager
+- **Reports to:** SE Manager, VP Sales Engineering, Head of Solutions
+- **Company size:** 100–2,000 employees
+- **Company stage:** Series B through public
+- **Industry/vertical:** Fintech — especially vendors selling to banks, broker-dealers, transfer agents, wealth management firms
+- **Geography:** US, remote or hybrid preferred (EST)
 
-## Pain Profile <!-- pin -->
-- **Primary pain:** <!-- one sentence, in buyer's words -->
-- **Secondary pains:**
-  <!-- 2-3 bullets, in buyer's words -->
-- **Current alternatives:** <!-- what they use today -->
-- **Trigger event:** <!-- what makes them look for a solution NOW -->
-- **Budget range:** <!-- ACV or deal size range -->
+## Secondary Target: Systems / IT Engineer <!-- pin -->
+- **Title(s) hiring:** Systems Engineer, IT Engineer, Infrastructure Engineer
+- **Reports to:** IT Manager, Director of Infrastructure, CTO
+- **Company size:** 500–10,000 employees
+- **Industry/vertical:** Financial services, fintech, professional services
+- **Geography:** US, NYC metro or remote
 
-## Buying Process
-- **Sales cycle:** <!-- e.g. 2-4 months -->
-- **Buying committee:** <!-- who else is involved -->
-- **Champion vs decision maker:** <!-- who loves it vs who signs -->
-- **Blockers:** <!-- common reasons deals stall -->
+## Fit Signals (apply / engage)
+- Sells software or services INTO financial services companies
+- Has a technical sales or implementation motion (SE team exists)
+- Lists domain knowledge of FS compliance or ops as a plus
+- Remote or hybrid — EST timezone compatible
+- Series B or later (stable enough for a real role, early enough to have impact)
 
-## Language Fingerprint <!-- pin -->
-- **Words they use:** <!-- actual phrases from conversations -->
-- **Words they don't use:** <!-- terms that signal non-ICP -->
-- **Hashtags they follow:** <!-- cross-platform -->
-- **Communities:** <!-- subreddits, Slack groups, Discord, forums -->
+## Skip Signals (pass)
+- Pure consumer fintech (B2C payments, crypto retail) — different buyer, different SE motion
+- Requires prior quota-carrying SE experience as hard requirement
+- On-site only outside NYC metro
+- Early stage (pre-Series B) unless role scope is unusually strong
+
+## What Jordan Brings That Fits <!-- pin -->
+- 7 years inside a FS firm — knows the buyer's procurement, security review, and IT landscape
+- Systems engineering depth — can run technical discovery and implementation conversations
+- No learning curve on the domain — cuts onboarding time for FS-focused SE teams
