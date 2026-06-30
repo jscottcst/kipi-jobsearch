@@ -5,8 +5,8 @@
 ## Current Baseline <!-- pin -->
 - **Current title:** Systems Engineer
 - **Current employer:** Continental Stock Transfer & Trust
-- **Current base:** {{NEEDS_PROOF - add before first screen}}
-- **Current total comp:** {{NEEDS_PROOF - include bonus if any}}
+- **Current base:** $82,000
+- **Current total comp:** $94,000
 
 ## Targets by Role Type <!-- pin -->
 
