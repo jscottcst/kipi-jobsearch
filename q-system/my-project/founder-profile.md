@@ -1,48 +1,50 @@
 # Founder Profile
 
-{{SETUP_NEEDED}}
-
-> This file is populated during first-run setup. The presence of {{SETUP_NEEDED}} triggers the setup wizard.
-
 ## Platform
-- **Environment:** (web / cli / desktop)
+- **Environment:** cli
 
 ## Archetype
-- **Type:** (gtm-founder / product-founder / content-creator / operator / minimal)
-- **Label:**
-- **Detected:** (date)
+- **Type:** operator
+- **Label:** Job Seeker / Systems Engineer in transition
+- **Detected:** 2026-06-30
 
 ## Identity
-- **Name:**
-- **Role:**
-- **Company:**
-- **One-liner:** (what you sell, who it's for)
-- **Stage:** (idea / pre-seed / seed / Series A / growth / established)
-- **Co-founder(s):**
+- **Name:** Jordan Scott
+- **Role:** Systems Engineer (current) → targeting Systems Engineer, Solutions Engineer, IT Engineer
+- **Company:** Continental Stock Transfer & Trust (financial services)
+- **One-liner:** IT systems engineer with financial services depth, breaking into solutions engineering in fintech and tech sales
+- **Stage:** Active job search
+- **Co-founder(s):** N/A
 
 ## Background
-- **Prior experience:** (relevant roles, companies, years)
-- **Domain expertise:** (what gives you credibility)
-- **Unique insight:** (what you know that others don't)
+- **Prior experience:** Systems engineering on an IT team at a financial services firm (Continental Stock Transfer & Trust)
+- **Domain expertise:** Financial services IT infrastructure, systems engineering, enterprise IT operations
+- **Unique insight:** Understands both the technical and compliance-heavy operational realities of financial services — valuable to fintech vendors selling into that market
+
+## Target Roles
+- **Primary:** Solutions Engineer (career change target — high priority)
+- **Secondary:** Systems Engineer, IT Engineer
+- **Target industries:** Financial services, fintech, tech sales / SaaS
+- **Why Solutions Engineering:** Bridges technical depth with customer-facing work; leverages existing FS domain knowledge as a sales/implementation differentiator
 
 ## Communication Style
-- **Primary language:**
-- **Writing style:** (direct, casual, academic, etc.)
-- **Neurodivergent accommodations:** (ADHD, ASD, AUDHD, none)
+- **Primary language:** English
+- **Writing style:** Direct, professional
+- **Neurodivergent accommodations:** none
 - **AUDHD mode enabled:** false
 
 ## Platform Handles
-- **LinkedIn URL:**
+- **LinkedIn URL:** https://www.linkedin.com/in/jordan-scott-854409154/
 - **X/Twitter handle:**
-- **Medium handle:** (e.g. @yourhandle, used for RSS: medium.com/feed/@handle)
-- **Reddit username:** (used by Reddit MCP: `mcp__reddit__get_user_posts`)
-- **Substack:** (newsletter name, used for RSS: name.substack.com/feed)
-- **GitHub username:**
-- **Instagram:** <!-- @handle or blank -->
-- **TikTok:** <!-- @handle or blank -->
+- **Medium handle:**
+- **Reddit username:**
+- **Substack:**
+- **GitHub username:** jscottcst
+- **Instagram:**
+- **TikTok:**
 
 ## CRM
-- **crm_source:** (notion / obsidian / none)
+- **crm_source:** none
 
 ## Connected Tools
 - **Notion:** not connected
@@ -54,10 +56,10 @@
 - **Gamma:** not connected
 
 ## Preferences
-- **Timezone:**
-- **Working hours:**
-- **Energy patterns:** (when are you sharpest?)
+- **Timezone:** Eastern Standard Time (EST/EDT)
+- **Working hours:** 9am–5pm ET
+- **Energy patterns:** {{UNVALIDATED}}
 
 ## Behavioral Settings
-- **challenge_cadence:** (weekly / monthly / rarely / disabled)
+- **challenge_cadence:** weekly
 - **sycophancy_audit_enabled:** true
