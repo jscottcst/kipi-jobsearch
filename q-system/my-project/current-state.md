@@ -1,59 +1,45 @@
 # Current State
 
-> Single source of truth for what works today vs. what's planned.
+> Single source of truth for where the job search stands today vs. what's planned.
 
-## Product Lines <!-- pin -->
+## Search Status <!-- pin -->
 
-### kipi-system (founder OS)
-The compounding founder operating system. Lives in `~/projects/kipi-system/`.
+- **Active since:** September 2025
+- **Role targets:** Systems Engineer (primary), Solutions Engineer (pivot target), IT Engineer (tertiary)
+- **Active pipeline:** 0 open applications
+- **Offers:** 0
+- **Applications sent:** 7 (all closed — see Application History)
+- **Conversations that went anywhere:** 1 (HRT email exchange with HM, Closed-Lost)
 
-### kipi-investigations (NEW — 2026-05-27)
-Productized version of the kipi-core investigation memory layer, for boutique intel / small T&S teams. Lives in `~/projects/kipi-investigations/`.
-- **Design partner:** Ally (see relationships.md)
-- **Wedge use case:** Ingest multiple intel reports; auto-build a compounding knowledge graph; visualize in Obsidian.
-- **ICP:** Boutique intel firms, resource-constrained T&S teams, PI shops, freelance OSINT investigators.
+## What's Operational <!-- pin -->
 
-## What Works Today (Demo-able) <!-- pin -->
-- Compounding investigation memory in kipi-core (consulting use case proven for Assaf's daily work)
-- Telegram scraping pipeline → intel synthesis
-- Python-deterministic CSV/document extraction before LLM reasoning
-- File-based knowledge layer that survives across Claude sessions
-- Multi-instance kipi system via `kipi new <path> <name>`
+- Job search OS (kipi) configured and running as of 2026-07-07
+- Canonical files populated: ICP, talk-tracks, objections, engagement-playbook, lead-lifecycle-rules, verticals, pricing-framework
+- Base resume exists + 6 company-specific versions
+- LinkedIn profile current (current job description intentionally not updated)
+- Compensation floor defined: $82k base / $94k total; SE target $110-140k base
 
-## Claimed But Unproven
-- "Build in two days" — true for Assaf with current tooling, {{NEEDS_VALIDATION}} as a customer-facing claim
-- Cross-investigation entity correlation at scale beyond ~10 reports {{NEEDS_PROOF}}
+## What Hasn't Started
 
-## Planned / Vision
-- Obsidian vault export module {{IN_PROGRESS — kipi-investigations}}
-- Web UI v0 (Ally explicitly said graph in Obsidian is the visualization, defer custom UI)
-- AWS-instance deployment for multi-user team access
-- SaaS pricing model {{UNVALIDATED}}
+- Active outreach (recruiter cold DMs, HM messages, warm intros)
+- LinkedIn engagement / content
+- Systematic job tracking (this system is now the tracker)
+- Networking conversations
 
-## Key Metrics
-- **Fundraise target:** N/A (bootstrapped)
-- **Team size:** 1 (founder)
-- **Active design partners:** 1 (Ally — kipi-investigations)
+## Application History <!-- pin -->
 
-## What We Are NOT <!-- pin -->
-- Not Palantir (enterprise pricing/complexity)
-- Not Maltego (graph-as-product, no compounding memory)
-- Not an OSINT aggregator (we don't pull data from external systems; user brings their own intel)
-- Not IOC3/Kaden's tool (username-to-graph aggregator — narrower scope)
-- Not "another T&S dashboard"
+| Company | Applied | Role | Outcome |
+|---------|---------|------|---------|
+| Cinder | 2026-01-10 | Systems Engineer | Ghosted |
+| SP | 2026-01-10 | Systems Engineer | Ghosted |
+| SS | 2026-01-10 | Systems Engineer | Ghosted |
+| Trexquant | 2026-01-10 | Systems Engineer | Ghosted |
+| CaT | 2026-02-19 | Systems Engineer | Ghosted |
+| Galaxy | 2026-03-03 | Systems Engineer | Ghosted |
+| HRT | 2026-03-03 | Systems Engineer | Closed-Lost (brief email exchange with HM) |
 
-## kipi-investigations Specific <!-- pin -->
+## What We Are NOT Doing <!-- pin -->
 
-### The wedge
-Customer drops intel reports (PDF/MD/CSV/screenshots/telegram scrapes) into an inbox. System ingests, extracts entities/relationships, correlates against prior reports, exports an Obsidian vault. Compounding memory across investigations.
-
-### What it IS
-- Investigation memory layer
-- Compounding knowledge graph
-- BYO-data (the user supplies the intel)
-- Obsidian-native visualization
-
-### What it is NOT
-- Not OSINT data collection (telegram scraper module exists but is optional)
-- Not a SaaS at launch (consultant-deployed prototype first)
-- Not integrated into customer's existing data systems (BYO data is the constraint)
+- Not targeting roles that require a hard "Solutions Engineer" title (skip signal per ICP)
+- Not applying to pre-Series B fintech vendors
+- Not updating current job description on LinkedIn (intentional)
