@@ -23,7 +23,20 @@ Execute the following, in order:
    - If this is **issue 2..N** of the same PRD AND the plan's `allowed_files` and `required_checks` match the PRD manifest verbatim AND no scope amendment is introduced: do NOT wait. Proceed directly to step 5.
    - If the plan deviates from the manifest in any way (scope amendment): wait for the founder. Surface explicitly as `[FOUNDER-INPUT-NEEDED]`.
 
-5. Run `/issue-approve`. That command flips the spec status from `open` to `in-progress` and arms the stop-time gate. Planning before this step is intentionally gate-exempt so a loaded spec does not spam the Stop hook while the plan is being reviewed.
+5. Load the execution-discipline layer: invoke the `fable-discipline` skill
+   by name via the Skill tool (it ships in the prd-os plugin; skill-name
+   resolution finds the installed copy — do NOT read a source-tree path,
+   and note `${CLAUDE_PLUGIN_ROOT}` here is kipi-dsse's root, not prd-os's).
+   It is prd-os's per-edit procedure — recon before edit,
+   verify-against-a-copy with a negative self-test, single-writer
+   chokepoints, scar-anchored why-comments. The deterministic slice
+   (test isolation) is enforced regardless by the fable-discipline-lint
+   PostToolUse hook in the prd-os plugin; the skill covers the judgment
+   slice the hook cannot see. If the skill is unavailable (prd-os not
+   installed), say so and continue — the lint hook still gates the
+   deterministic slice.
+
+6. Run `/issue-approve`. That command flips the spec status from `open` to `in-progress` and arms the stop-time gate. Planning before this step is intentionally gate-exempt so a loaded spec does not spam the Stop hook while the plan is being reviewed.
 
 **Do NOT ask the founder for confirmation on:**
 - `/issue-start` invocation itself (the founder already typed it or the prior issue's closeout chained to it)

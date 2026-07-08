@@ -54,6 +54,64 @@ def file_exists(path):
     return os.path.isfile(path)
 
 
+# Model-allocation policy. Single source of truth: .claude/rules/model-allocation.md
+# (this table and that rule must change together). Why this exists: audit 2026-07-01
+# found the tier policy only as prose while frontmatters had drifted (haiku pinned
+# 4-5, opus/sonnet stuck on 4-6 with 4-8/5 current) and nothing flagged it.
+MODEL_TIERS = {
+    "haiku": {"claude-haiku-4-5", "claude-haiku-4-5-20251001"},
+    "sonnet": {"claude-sonnet-5"},
+    "opus": {"claude-opus-4-8"},
+}
+AGENT_TIER = {
+    "preflight": "haiku",
+    "data-ingest": "haiku",
+    "content-reviewer": "sonnet",
+    "engagement-hitlist": "opus",
+    "synthesizer": "opus",
+}
+
+
+def model_allocation_violations(claude_agents_dir):
+    """Validate model: frontmatter in .claude/agents/*.md against the tier policy.
+
+    Returns a list of violation strings (empty = compliant). Dir-parameterized so
+    tests can run it against a corrupted temp copy instead of the live tree.
+    """
+    violations = []
+    if not os.path.isdir(claude_agents_dir):
+        return ["agents dir missing: " + claude_agents_dir]
+    allowed_ids = set().union(*MODEL_TIERS.values())
+    for f in sorted(os.listdir(claude_agents_dir)):
+        if not f.endswith(".md"):
+            continue
+        name, model = None, None
+        in_fm = False
+        with open(os.path.join(claude_agents_dir, f)) as fh:
+            for i, line in enumerate(fh):
+                line = line.strip()
+                if line == "---":
+                    if in_fm:
+                        break
+                    in_fm = True
+                    continue
+                if in_fm:
+                    if line.startswith("name:"):
+                        name = line.split(":", 1)[1].strip()
+                    elif line.startswith("model:"):
+                        model = line.split(":", 1)[1].strip().strip('"')
+        if model is None:
+            violations.append(f"{f}: no model: in frontmatter")
+            continue
+        if model not in allowed_ids:
+            violations.append(f"{f}: model '{model}' not in allowlist (deprecated or unknown)")
+            continue
+        expected_tier = AGENT_TIER.get(name or f[:-3])
+        if expected_tier and model not in MODEL_TIERS[expected_tier]:
+            violations.append(f"{f}: model '{model}' is not tier '{expected_tier}' (task-tier mismatch)")
+    return violations
+
+
 def dir_exists(path):
     return os.path.isdir(path)
 
@@ -197,6 +255,14 @@ def phase_1():
     )
     check("_auto-fail-checklist.md exists", file_exists(os.path.join(agents_dir, "_auto-fail-checklist.md")))
 
+    # --- Gate 1.1b: Claude agent model allocation ---
+    print()
+    print("  --- Gate 1.1b: Model allocation (.claude/agents) ---")
+    ma_violations = model_allocation_violations(os.path.join(SCRIPT_DIR, ".claude", "agents"))
+    for v in ma_violations:
+        warn(v)
+    check(f"Agent model IDs match the allocation policy ({len(ma_violations)} violations)", not ma_violations)
+
     # --- GATE 1.2: Scripts ---
     print()
     print("  --- Gate 1.2: Scripts ---")
@@ -218,7 +284,7 @@ def phase_1():
     # (the leak-detector and its test): a denylist must name the tokens it
     # blocks, so it legitimately contains them. Same self-reference exemption
     # this validator grants itself in the full sweep below.
-    script_exclude = ("lessons-validator",)
+    script_exclude = ("lessons-validator", "lessons_scrub", "lessons-scrub")
     script_hits = 0
     for root, dirs, files in os.walk(scripts_dir):
         for f in files:
@@ -297,7 +363,13 @@ def phase_1():
 
     q_system_dir = os.path.join(SCRIPT_DIR, "q-system")
     full_sweep = 0
-    exclude_files = {"PHASE-0-AUDIT", "EXECUTION-PLAN", "validate-separation", "instance-registry", "lessons-validator"}
+    # canonical/ files that reference the fleet by name on purpose. canonical/ is
+    # NOT propagated by kipi update -- kipi-update.sh rsync excludes /canonical/,
+    # /my-project/, /memory/, /output/ -- so these refs are instance-local and
+    # never ship to another instance (same rationale as lessons-validator/
+    # instance-registry): ai-index-2026-comparison (fleet analysis), fleet-map
+    # (fleet inventory), decisions (decision log).
+    exclude_files = {"PHASE-0-AUDIT", "EXECUTION-PLAN", "validate-separation", "instance-registry", "lessons-validator", "lessons_scrub", "lessons-scrub", "ai-index-2026-comparison", "fleet-map", "decisions"}
     exclude_dirs = {"output", ".obsidian", "memory"}
     for root, dirs, files in os.walk(q_system_dir):
         dirs[:] = [d for d in dirs if d not in exclude_dirs]
@@ -440,7 +512,8 @@ def phase_4():
     for instance in registry.get("instances", []):
         name = instance.get("name", "unknown")
         path = instance.get("path", "")
-        prefix = instance.get("subtree_prefix", "q-system")
+        # `or`, not .get default: an explicit null in the registry bypasses the default
+        prefix = instance.get("subtree_prefix") or "q-system"
         itype = instance.get("type", "subtree")
 
         # Skip archived/merged instances
@@ -448,6 +521,14 @@ def phase_4():
             print()
             print(f"  --- {name} ({itype}) ---")
             print(f"  {YELLOW}SKIP{NC} {name}: {instance['status']}")
+            continue
+
+        # Standalone repos have no skeleton subtree; nothing to validate here
+        # (a null subtree_prefix used to crash this phase on os.path.join)
+        if itype == "standalone" or not instance.get("subtree_prefix"):
+            print()
+            print(f"  --- {name} ({itype}) ---")
+            print(f"  {YELLOW}SKIP{NC} {name}: standalone (not skeleton-managed)")
             continue
 
         print()

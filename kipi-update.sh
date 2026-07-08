@@ -30,6 +30,22 @@ echo "Branch: $SKELETON_BRANCH"
 [ "$DRY_RUN" = "--dry-run" ] && echo "MODE: DRY RUN (no changes)"
 echo ""
 
+# Preflight: refuse to propagate if an enforcement hook is wired in the skeleton's
+# runtime .claude/settings.json but missing from settings-template.json -- it would
+# ship its SCRIPT to the fleet while the SWITCH never propagates (instances rebuild
+# settings from the template only). Scar 2026-06-30: 8 hooks ran dead in 18/18
+# instances exactly this way (lessons-validator, wiring-check, +6).
+SYNC_CHECK="$SCRIPT_DIR/q-system/.q-system/scripts/settings-template-sync-check.py"
+if [ -f "$SYNC_CHECK" ]; then
+  if ! CLAUDE_PROJECT_DIR="$SCRIPT_DIR" python3 "$SYNC_CHECK" --check; then
+    echo ""
+    echo "ABORT: .claude/settings.json and settings-template.json are out of sync (above)."
+    echo "Add the stranded hook(s) to settings-template.json before propagating,"
+    echo "or kipi update would ship dead enforcement to every instance."
+    exit 1
+  fi
+fi
+
 PASS=0
 FAIL=0
 SKIP=0
@@ -39,6 +55,16 @@ while IFS='|' read -r name path prefix itype; do
 
   if [ ! -d "$path" ]; then
     echo "  SKIP: path $path does not exist"
+    SKIP=$((SKIP + 1))
+    echo ""
+    continue
+  fi
+
+  # Standalone repos have no skeleton subtree; nothing to sync and the updater
+  # must not auto-commit or rsync into them. (A null subtree_prefix used to
+  # crash the registry parser below -- keep this guard before any mutation.)
+  if [ "$itype" = "standalone" ] || [ -z "$prefix" ]; then
+    echo "  SKIP: standalone (not skeleton-managed)"
     SKIP=$((SKIP + 1))
     echo ""
     continue
@@ -114,19 +140,47 @@ while IFS='|' read -r name path prefix itype; do
         # Lives inside ARCHIVE_TMP so the existing rm -rf cleans it -- no stash stack,
         # no extra cleanup, collision-safe.
         SNAP="$ARCHIVE_TMP/.snap"; mkdir -p "$SNAP/f"
+        # Excluded from preservation: bytecode junk (regenerable) and the forbidden
+        # nested $prefix/q-system/ shadow tree (a stale skeleton copy from the old
+        # `git subtree add` creation path -- folder-structure.md bans it; restoring
+        # it made the shadow tree immortal across updates).
         ( cd "$path" && git ls-files -z --others -- "$prefix/" \
             ":(exclude)$prefix/my-project/" ":(exclude)$prefix/canonical/" \
             ":(exclude)$prefix/memory/" ":(exclude)$prefix/output/" \
-            ":(exclude)$prefix/.q-system/agent-pipeline/bus/" 2>/dev/null ) > "$SNAP/list" || true
+            ":(exclude)$prefix/.q-system/agent-pipeline/bus/" \
+            ":(exclude)$prefix/q-system/" \
+            ":(exclude)*.pyc" ":(exclude)*__pycache__*" 2>/dev/null ) > "$SNAP/list" || true
+        # Also preserve TRACKED instance-only files the --delete would remove. The
+        # ls-files --others snapshot above only covers UNTRACKED files; a script the
+        # instance COMMITTED inside the synced tree was deleted with no protection
+        # (scar 2026-06-24: fractional-cxo income scanners died this way for 6 days).
+        # The helper flags only files the skeleton NEVER tracked (genuinely instance-
+        # added), so skeleton-intended deletions still propagate. Fail-open: a missing
+        # or erroring helper is a no-op, never breaking the update.
+        PRESERVE_SCAN="$SCRIPT_DIR/kipi-update-preserve-scan.py"
+        if [ -f "$PRESERVE_SCAN" ]; then
+          python3 "$PRESERVE_SCAN" --skeleton-archive "$ARCHIVE_TMP" \
+            --instance "$path" --prefix "$prefix" --skeleton-git "$SCRIPT_DIR" \
+            > "$SNAP/tracked" 2>"$SNAP/warn" || true
+          [ -s "$SNAP/warn" ] && cat "$SNAP/warn"
+          if [ -s "$SNAP/tracked" ]; then
+            while IFS= read -r tf; do [ -n "$tf" ] && printf '%s\0' "$tf"; done \
+              < "$SNAP/tracked" >> "$SNAP/list"
+          fi
+        fi
         ( cd "$path" && while IFS= read -r -d '' uf; do
             mkdir -p "$SNAP/f/$(dirname "$uf")" && cp -a "$uf" "$SNAP/f/$uf" 2>/dev/null || true
           done < "$SNAP/list" )
+        # Excludes are ANCHORED (leading /) to the transfer root. Unanchored
+        # patterns also matched inside the nested q-system/q-system/ shadow copy
+        # (protecting ITS memory/, canonical/, ...), so rsync could never delete
+        # the shadow tree -- "not empty, cannot delete" on every update.
         rsync -a --delete "$ARCHIVE_TMP/q-system/" "$path/$prefix/" \
-          --exclude="my-project/" \
-          --exclude="canonical/" \
-          --exclude="memory/" \
-          --exclude="output/" \
-          --exclude=".q-system/agent-pipeline/bus/" 2>/dev/null
+          --exclude="/my-project/" \
+          --exclude="/canonical/" \
+          --exclude="/memory/" \
+          --exclude="/output/" \
+          --exclude="/.q-system/agent-pipeline/bus/" 2>/dev/null
         # Restore any untracked file the rsync --delete removed (skeleton doesn't manage it).
         ( cd "$path" && while IFS= read -r -d '' uf; do
             if ! { [ -e "$uf" ] || [ -L "$uf" ]; } && { [ -e "$SNAP/f/$uf" ] || [ -L "$SNAP/f/$uf" ]; }; then
@@ -157,8 +211,8 @@ while IFS='|' read -r name path prefix itype; do
       DRY_TMP=$(mktemp -d)
       if git -C "$SCRIPT_DIR" archive --format=tar HEAD -- q-system/ 2>/dev/null | tar -x -C "$DRY_TMP" 2>/dev/null; then
         CHANGED=$(rsync -ain --delete "$DRY_TMP/q-system/" "$path/$prefix/" \
-          --exclude="my-project/" --exclude="canonical/" --exclude="memory/" \
-          --exclude="output/" --exclude=".q-system/agent-pipeline/bus/" 2>/dev/null)
+          --exclude="/my-project/" --exclude="/canonical/" --exclude="/memory/" \
+          --exclude="/output/" --exclude="/.q-system/agent-pipeline/bus/" 2>/dev/null)
         if [ -n "$CHANGED" ]; then
           echo "  Changes vs skeleton (run without --dry to apply):"
           echo "$CHANGED" | sed 's/^/    /'
@@ -180,68 +234,13 @@ while IFS='|' read -r name path prefix itype; do
 
     # Rebuild settings.json from template (preserves instance customizations)
     if [ -f "$path/.claude/settings.json" ]; then
-      python3 -c "
-import json, sys
-
-template = json.load(open('$SCRIPT_DIR/settings-template.json'))
-existing = json.load(open('$path/.claude/settings.json'))
-merged = dict(template)
-
-# Preserve instance MCP servers (all, including disabled _prefixed)
-if 'mcpServers' in existing:
-    merged['mcpServers'] = dict(template.get('mcpServers', {}))
-    for k, v in existing['mcpServers'].items():
-        merged['mcpServers'][k] = v
-
-# Preserve instance-specific enabled plugins (additive merge)
-if 'enabledPlugins' in existing:
-    merged['enabledPlugins'] = dict(template.get('enabledPlugins', {}))
-    merged['enabledPlugins'].update(existing['enabledPlugins'])
-
-# Preserve instance-specific permission additions (merge allow lists)
-if 'permissions' in existing and 'allow' in existing['permissions']:
-    template_allow = set(template.get('permissions', {}).get('allow', []))
-    instance_allow = set(existing['permissions']['allow'])
-    merged['permissions']['allow'] = sorted(template_allow | instance_allow)
-
-# Preserve instance tool configurations (additive merge)
-if 'toolConfigurations' in existing:
-    merged['toolConfigurations'] = dict(template.get('toolConfigurations', {}))
-    merged['toolConfigurations'].update(existing['toolConfigurations'])
-
-# Preserve instance model override if different from template
-if existing.get('model') and existing.get('model') != template.get('model'):
-    merged['model'] = existing['model']
-
-# Preserve instance-added HOOKS (union template + instance per event+matcher, dedupe by
-# command). Without this the merge dropped instance hooks every update -- the
-# kipi-update-clobbers-instance-files failure that wiped skill-hook gating. Template hook
-# updates still apply; instance-added lint/gate hooks survive.
-if 'hooks' in existing or 'hooks' in template:
-    merged_hooks = {}
-    events = set(list(template.get('hooks', {})) + list(existing.get('hooks', {})))
-    for event in events:
-        groups = template.get('hooks', {}).get(event, []) + existing.get('hooks', {}).get(event, [])
-        by_matcher = {}
-        order = []
-        for grp in groups:
-            m = grp.get('matcher', '')
-            if m not in by_matcher:
-                by_matcher[m] = {'matcher': m, 'hooks': [], '_seen': set()}
-                order.append(m)
-            for h in grp.get('hooks', []):
-                cmd = h.get('command', '')
-                if cmd not in by_matcher[m]['_seen']:
-                    by_matcher[m]['_seen'].add(cmd)
-                    by_matcher[m]['hooks'].append(h)
-        merged_hooks[event] = [{'matcher': by_matcher[m]['matcher'], 'hooks': by_matcher[m]['hooks']}
-                               if by_matcher[m]['matcher'] else {'hooks': by_matcher[m]['hooks']}
-                               for m in order]
-    merged['hooks'] = merged_hooks
-
-json.dump(merged, open('$path/.claude/settings.json', 'w'), indent=2)
-print('    settings.json updated (MCP, plugins, permissions, tools, hooks preserved)')
-" 2>/dev/null || echo "    WARN: settings.json sync failed"
+      # Merge lives in kipi-settings-merge.py (extracted 2026-07-02 so it is
+      # testable: test-settings-merge.sh). Scar: the former inline heredoc
+      # deduped hooks by exact command string, so a template command-form
+      # change left BOTH forms in every instance — token-guard ran twice per
+      # tool call and its counters doubled. The script dedupes by invoked
+      # script basename; template form wins, instance-added hooks survive.
+      python3 "$SCRIPT_DIR/kipi-settings-merge.py" "$SCRIPT_DIR/settings-template.json" "$path/.claude/settings.json" 2>/dev/null || echo "    WARN: settings.json sync failed"
 
       # Path rewriting: previously this section doubled $CLAUDE_PROJECT_DIR/q-system/
       # to $CLAUDE_PROJECT_DIR/q-system/q-system/ for "subtree" instances. That logic
@@ -260,16 +259,32 @@ print('    settings.json updated (MCP, plugins, permissions, tools, hooks preser
     cp "$SCRIPT_DIR"/.claude/output-styles/*.md "$path/.claude/output-styles/" 2>/dev/null || true
     cp "$SCRIPT_DIR"/.claude/rules/*.md "$path/.claude/rules/" 2>/dev/null || true
 
-    # Sync plugins (copy contents, not directory, to avoid plugins/plugins/ nesting)
+    # Sync plugins (copy contents, not directory, to avoid plugins/plugins/ nesting).
+    # rsync instead of rm -rf + cp -R: --delete-excluded strips embedded .git dirs
+    # and bytecode from the instance copy. A symlinked skeleton plugin (e.g.
+    # memory-lifecycle -> standalone repo) used to materialize WITH its .git,
+    # leaving every instance permanently dirty on plugins/<name> in git status.
     if [ -d "$SCRIPT_DIR/plugins" ]; then
       mkdir -p "$path/plugins"
       for plugin_dir in "$SCRIPT_DIR"/plugins/*/; do
         if [ -d "$plugin_dir" ]; then
           plugin_name="$(basename "$plugin_dir")"
-          rm -rf "$path/plugins/$plugin_name"
-          cp -R "$plugin_dir" "$path/plugins/$plugin_name"
+          rsync -a --delete --delete-excluded \
+            --exclude="/.git/" --exclude="__pycache__/" --exclude="*.pyc" \
+            "$plugin_dir" "$path/plugins/$plugin_name/" 2>/dev/null || true
         fi
       done
+    fi
+
+    # Commit the config sync. The updater used to commit only $prefix/, leaving
+    # .claude/ and plugins/ permanently dirty in every instance repo.
+    if git -C "$path" rev-parse --git-dir >/dev/null 2>&1; then
+      ( cd "$path" && \
+        git rm -r -q --cached plugins/memory-lifecycle 2>/dev/null || true; \
+        git add .claude/ plugins/ 2>/dev/null || true; \
+        if ! git diff --cached --quiet 2>/dev/null; then \
+          git commit --no-verify --no-gpg-sign -m "chore: sync .claude config + plugins from skeleton $(date +%Y-%m-%d)" </dev/null 2>/dev/null || true; \
+        fi )
     fi
 
     echo "  Config synced"
@@ -282,7 +297,7 @@ for i in d['instances']:
     if 'status' in i and i['status'].startswith('merged'):
         continue
     t = i.get('type', 'subtree')
-    prefix = i.get('subtree_prefix', 'q-system')
+    prefix = i.get('subtree_prefix') or ''
     print(i['name'] + '|' + i['path'] + '|' + prefix + '|' + t)
 ")
 

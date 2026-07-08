@@ -22,7 +22,16 @@ python3 q-system/.q-system/sycophancy-harness.py YYYY-MM-DD
 ```
 If exit code = 1 (alert), the synthesizer MUST surface it prominently. Show audit output to the founder always.
 
+Rules moved here from sycophancy.md (they are morning-coupled; the portable core is `sycophancy-core.md`):
+1. When the sycophancy audit agent runs (Phase 6), its output is verified by `sycophancy-harness.py`. If the harness disagrees, the harness wins.
+2. If `sycophancy-audit.json` shows `overall: "alert"`, the synthesizer MUST surface it as a dedicated section, not an FYI line.
+
 ## Self-Healing Loop (ENFORCED)
+
+The generic contract (targeted fix, re-run failed step only, 3-attempt cap,
+environmental failures stop on attempt 1) lives in
+`.claude/rules/self-healing-retry.md` — any phased job follows it. Below is its
+morning-pipeline binding.
 
 On phase failure during `/q-morning`:
 1. Capture stderr from the failed phase run
@@ -41,7 +50,7 @@ Every retry attempt logs to `output/morning-log-YYYY-MM-DD.json` with `phase`, `
 
 # Agent Pipeline
 
-Read `.q-system/agent-pipeline/agents/step-orchestrator.md` for the full phase plan. Agents communicate through JSON files in `bus/{date}/`, not context. Model allocation: Haiku for data pulls, scrapes, and simple writes. Sonnet for analysis/content. Opus for engagement hitlist and synthesis only.
+Read `.q-system/agent-pipeline/agents/step-orchestrator.md` for the full phase plan. Agents communicate through JSON files in `bus/{date}/`, not context. Model allocation: see `.claude/rules/model-allocation.md` (single source; validated by `kipi check`).
 
 **Full post text rule (ENFORCED):** Agents reading social posts MUST save actual post text, not summaries.
 

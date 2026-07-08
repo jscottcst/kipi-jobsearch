@@ -232,11 +232,11 @@ def check_volume(cache):
     """Block at ceiling, warn at warning threshold."""
     calls = cache.get("tool_calls_since_user", 0)
     if calls >= VOLUME_CEILING:
-        return ("block", f"{VOLUME_CEILING} tool calls without user input. Stop. Summarize what you've accomplished and what's remaining.")
+        return ("block", f"{VOLUME_CEILING} tool calls without user input or a commit. Commit finished work now (git commit is exempt from this ceiling and resets it), or stop and summarize what you've accomplished and what's remaining.")
     if calls >= VOLUME_WARNING and cache.get("warnings_issued", 0) == 0:
         remaining = VOLUME_CEILING - calls
         cache["warnings_issued"] = 1
-        return ("warn", f"You've made {calls} tool calls since the last user message. You have {remaining} remaining before hard stop. Focus on producing output.")
+        return ("warn", f"You've made {calls} tool calls since the last user message. You have {remaining} remaining before hard stop. Committing finished work resets the counter; otherwise focus on producing output.")
     return None
 
 
@@ -331,9 +331,47 @@ def block(message):
     sys.exit(2)
 
 
+def uncount_blocked_attempt(cache, tool_name, tool_input):
+    """A guard-BLOCKED call never executed, so it must not count toward the
+    escalation counters. Scar (2026-07-02, Pure_spectrum_Q/qep_agent): at the
+    volume ceiling each blocked Edit still incremented repeat_map; the 3rd
+    blocked retry was reported as 'attempted this exact call 3 times' for a
+    call that ran ZERO times (exact-retry outranks volume), hijacking the true
+    block reason. Only repeat_map and edit_targets are undone — the volume
+    counters stay, since a blocked attempt still spent budget and the volume
+    message stays truthful either way."""
+    input_hash = hashlib.md5(
+        (tool_name + json.dumps(tool_input, sort_keys=True)).encode()
+    ).hexdigest()[:12]
+    key = f"{tool_name}:{input_hash}"
+    repeat_map = cache.get("repeat_map", {})
+    if repeat_map.get(key, 0) > 1:
+        repeat_map[key] -= 1
+    else:
+        repeat_map.pop(key, None)
+    if tool_name == "Edit":
+        targets = cache.get("edit_targets", {})
+        file_path = tool_input.get("file_path", "")
+        if targets.get(file_path, 0) > 1:
+            targets[file_path] -= 1
+        else:
+            targets.pop(file_path, None)
+    return cache
+
+
 def warn(message):
-    """Output warning as JSON additionalContext (doesn't block)."""
-    print(json.dumps({"additionalContext": message}))
+    """Output warning as PreToolUse additionalContext (doesn't block). Must be
+    nested under hookSpecificOutput with hookEventName — a top-level
+    additionalContext key is silently ignored by Claude Code, which left every
+    warning tier invisible until 2026-07-02 (the guard jumped from zero
+    feedback straight to exit-2 blocks). warn() is only called from the
+    PreToolUse path; UserPromptSubmit and PostToolUse exit before the checks."""
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "additionalContext": message,
+        }
+    }))
     sys.exit(0)
 
 
@@ -427,6 +465,13 @@ def reset_volume_if_committed(cache):
 
 
 def main():
+    # Runtime guard (scar sp-28bf75a4): this is a Claude Code circuit breaker.
+    # Foreign runtimes that load the kipi plugins via their own marketplace clone
+    # (e.g. Codex through ~/.codex/.tmp/marketplaces/kipi) must NOT run it -- a
+    # UserPromptSubmit block fired inside `codex exec` and killed an in-repo Codex
+    # review. CLAUDECODE=1 is set only by the Claude Code runtime; absent it, no-op.
+    if not os.environ.get("CLAUDECODE"):
+        sys.exit(0)
     # Read hook input from stdin
     try:
         hook_input = json.load(sys.stdin)
@@ -493,12 +538,14 @@ def main():
     # 1. Sensitive file blocking (highest priority)
     msg = check_sensitive_file(tool_name, tool_input)
     if msg:
+        cache = uncount_blocked_attempt(cache, tool_name, tool_input)
         save_cache(actor, cache)
         block(msg)
 
     # 2. Exact retry detection
     msg = check_exact_retry(tool_name, tool_input, cache)
     if msg:
+        cache = uncount_blocked_attempt(cache, tool_name, tool_input)
         save_cache(actor, cache)
         block(msg)
 
@@ -510,21 +557,24 @@ def main():
         result = check_volume(cache)
         if result:
             level, msg = result
-            save_cache(actor, cache)
             if level == "block":
+                cache = uncount_blocked_attempt(cache, tool_name, tool_input)
+                save_cache(actor, cache)
                 block(msg)
-            else:
-                warn(msg)
+            save_cache(actor, cache)
+            warn(msg)
 
     # 4. Subagent ceiling
     msg = check_agent_ceiling(tool_name, cache)
     if msg:
+        cache = uncount_blocked_attempt(cache, tool_name, tool_input)
         save_cache(actor, cache)
         block(msg)
 
     # 5. MCP rate limit
     msg = check_mcp_rate(tool_name, cache)
     if msg:
+        cache = uncount_blocked_attempt(cache, tool_name, tool_input)
         save_cache(actor, cache)
         block(msg)
 
@@ -549,6 +599,7 @@ def main():
     # 9. Edit spiral block
     msg = check_edit_spiral(tool_name, tool_input, cache)
     if msg:
+        cache = uncount_blocked_attempt(cache, tool_name, tool_input)
         save_cache(actor, cache)
         block(msg)
 
